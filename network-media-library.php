@@ -319,8 +319,8 @@ add_filter( 'rest_pre_dispatch', function( $result, \WP_REST_Server $server, \WP
 }, 0, 3 );
 
 /**
- * Filter REST API responses for post saves which include featured_media
- * field and force the post meta update even if the id doesn't exist on the
+ * Filter successful REST API post updates which include the featured_media
+ * field and force the post meta update even if the ID does not exist on the
  * current site.
  *
  * @param \WP_HTTP_Response|\WP_Error $response
@@ -336,23 +336,59 @@ add_filter( 'rest_request_after_callbacks', function ( $response, array $handler
 		return $response;
 	}
 
-	$featuredImage = (int) $request['featured_media'] ?? null;
+	// This filter runs after every REST callback. Do not let read requests or
+	// unrelated endpoints mutate post meta merely by supplying matching params.
+	$callback = $handler['callback'] ?? null;
+	if (
+		! ( $response instanceof \WP_REST_Response )
+		|| $response->is_error()
+		|| ! in_array( $request->get_method(), [ 'POST', 'PUT', 'PATCH' ], true )
+		|| ! is_array( $callback )
+		|| ! isset( $callback[0], $callback[1] )
+		|| ! ( $callback[0] instanceof \WP_REST_Posts_Controller )
+		|| $callback[0] instanceof \WP_REST_Attachments_Controller
+		|| 'update_item' !== $callback[1]
+	) {
+		return $response;
+	}
 
-	if ( $featuredImage ) {
-		switch_to_media_site();
-		$attachment = get_post( $featuredImage );
-		restore_current_blog();
-
-		$post_id = (int) $request['id'] ?? null;
-
-		if ( $attachment ) {
-			update_post_meta( $post_id, '_thumbnail_id', $featuredImage );
-		} else {
-			delete_post_meta( $post_id, '_thumbnail_id' );
+	// get_param() includes REST defaults. Inspect request input sources so an
+	// omitted featured_media field cannot accidentally remove a thumbnail.
+	$featured_media_provided = false;
+	foreach ( [ $request->get_json_params(), $request->get_body_params(), $request->get_query_params() ] as $params ) {
+		if ( array_key_exists( 'featured_media', $params ) ) {
+			$featured_media_provided = true;
+			break;
 		}
+	}
 
-		$data                   = $response->get_data();
-		$data['featured_media'] = $featuredImage;
+	if ( ! $featured_media_provided ) {
+		return $response;
+	}
+
+	$post_id = (int) $request->get_param( 'id' );
+	if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
+		return $response;
+	}
+
+	$featured_image = (int) $request->get_param( 'featured_media' );
+	$attachment     = null;
+
+	if ( $featured_image ) {
+		switch_to_media_site();
+		$attachment = get_post( $featured_image );
+		restore_current_blog();
+	}
+
+	if ( $attachment && 'attachment' === $attachment->post_type ) {
+		update_post_meta( $post_id, '_thumbnail_id', $featured_image );
+	} else {
+		delete_post_meta( $post_id, '_thumbnail_id' );
+	}
+
+	$data = $response->get_data();
+	if ( is_array( $data ) ) {
+		$data['featured_media'] = $featured_image;
 		$response->set_data( $data );
 	}
 
