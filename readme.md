@@ -8,8 +8,8 @@ This small plugin transparently shares media from one central media library site
 
 ## Minimum Requirements ##
 
-**PHP:** 7.0  
-**WordPress:** 4.9  
+- **PHP:** 8.2 or later
+- **WordPress:** 6.6 or later
 
 ## Installation
 
