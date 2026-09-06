@@ -7,6 +7,7 @@ Network Media Library is a plugin for WordPress Multisite which provides a centr
 Changes:
 - Fixed REST vulnerability allowing featured image chnages without user rights checking
 - Replaced calls to deprecared make_content_images_responsive() with wp_filter_content_tags()
+- Global library site ID changed from 2 to 1
 
 ## Description
 
