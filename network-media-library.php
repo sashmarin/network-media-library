@@ -54,7 +54,7 @@ if ( ! is_multisite() ) {
  *
  * @var int The network media library site ID.
  */
-const SITE_ID = 2;
+const SITE_ID = 1;
 
 /**
  * Returns the ID of the site which acts as the network media library.
