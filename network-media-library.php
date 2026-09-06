@@ -2,6 +2,8 @@
 /**
  * Network Media Library plugin for WordPress
  *
+ * *** Modified version, forked from https://github.com/humanmade/network-media-library ***
+ * 
  * This plugin originally started life as a fork of the Multisite Global Media plugin by Frank Bültge and Dominik
  * Schilling, but has since diverged entirely and retains little of the original functionality. If the Network Media
  * Library plugin doesn't suit your needs, try these alternatives:
@@ -10,7 +12,7 @@
  * - [Network Shared Media](https://wordpress.org/plugins/network-shared-media/)
  *
  * @package   network-media-library
- * @link      https://github.com/humanmade/network-media-library
+ * @link      https://github.com/sashmarin/network-media-library
  * @author    John Blackbourn <john@johnblackbourn.com>, Dominik Schilling <d.schilling@inpsyde.com>, Frank Bültge <f.bueltge@inpsyde.com>
  * @copyright 2019 Human Made
  * @license   https://opensource.org/licenses/MIT
@@ -18,8 +20,8 @@
  * Plugin Name: Network Media Library
  * Description: Network Media Library provides a central media library that's shared across all sites on the Multisite network.
  * Network:     true
- * Plugin URI:  https://github.com/humanmade/network-media-library
- * Version:     1.6.0
+ * Plugin URI:  https://github.com/sashmarin/network-media-library
+ * Version:     1.6.0-S001
  * Author:      John Blackbourn, Dominik Schilling, Frank Bültge
  * Author URI:  https://github.com/humanmade/network-media-library/graphs/contributors
  * License:     MIT

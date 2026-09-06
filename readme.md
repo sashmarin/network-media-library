@@ -2,6 +2,12 @@
 
 Network Media Library is a plugin for WordPress Multisite which provides a central media library that's shared across all sites on the Multisite network.
 
+*** Modified version, forked from https://github.com/humanmade/network-media-library ***
+
+Changes:
+- Fixed REST vulnerability allowing featured image chnages without user rights checking
+- Replaced calls to deprecared make_content_images_responsive() with wp_filter_content_tags()
+
 ## Description
 
 This small plugin transparently shares media from one central media library site to all the other sites on the network. All media that's uploaded gets transparently directed to the central media site, and subsequently made available network-wide. Nothing is copied, cloned, synchronised, or mirrored, so for each file that's uploaded there's only one attachment and one copy of the file.
