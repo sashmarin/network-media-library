@@ -2,6 +2,8 @@
 /**
  * Network Media Library plugin for WordPress
  *
+ * *** Modified version, forked from https://github.com/humanmade/network-media-library ***
+ * 
  * This plugin originally started life as a fork of the Multisite Global Media plugin by Frank Bültge and Dominik
  * Schilling, but has since diverged entirely and retains little of the original functionality. If the Network Media
  * Library plugin doesn't suit your needs, try these alternatives:
@@ -10,7 +12,7 @@
  * - [Network Shared Media](https://wordpress.org/plugins/network-shared-media/)
  *
  * @package   network-media-library
- * @link      https://github.com/humanmade/network-media-library
+ * @link      https://github.com/sashmarin/network-media-library
  * @author    John Blackbourn <john@johnblackbourn.com>, Dominik Schilling <d.schilling@inpsyde.com>, Frank Bültge <f.bueltge@inpsyde.com>
  * @copyright 2019 Human Made
  * @license   https://opensource.org/licenses/MIT
@@ -18,15 +20,16 @@
  * Plugin Name: Network Media Library
  * Description: Network Media Library provides a central media library that's shared across all sites on the Multisite network.
  * Network:     true
- * Plugin URI:  https://github.com/humanmade/network-media-library
- * Version:     1.6.0
+ * Plugin URI:  https://github.com/sashmarin/network-media-library
+ * Version:     1.6.0-S001
  * Author:      John Blackbourn, Dominik Schilling, Frank Bültge
  * Author URI:  https://github.com/humanmade/network-media-library/graphs/contributors
  * License:     MIT
  * License URI: ./LICENSE
  * Text Domain: network-media-library
  * Domain Path: /languages
- * Requires PHP: 7.0
+ * Requires at least: 6.6
+ * Requires PHP: 8.2
  */
 
 declare( strict_types=1 );
@@ -53,7 +56,7 @@ if ( ! is_multisite() ) {
  *
  * @var int The network media library site ID.
  */
-const SITE_ID = 2;
+const SITE_ID = 1;
 
 /**
  * Returns the ID of the site which acts as the network media library.
@@ -319,8 +322,8 @@ add_filter( 'rest_pre_dispatch', function( $result, \WP_REST_Server $server, \WP
 }, 0, 3 );
 
 /**
- * Filter REST API responses for post saves which include featured_media
- * field and force the post meta update even if the id doesn't exist on the
+ * Filter successful REST API post updates which include the featured_media
+ * field and force the post meta update even if the ID does not exist on the
  * current site.
  *
  * @param \WP_HTTP_Response|\WP_Error $response
@@ -336,23 +339,59 @@ add_filter( 'rest_request_after_callbacks', function ( $response, array $handler
 		return $response;
 	}
 
-	$featuredImage = (int) $request['featured_media'] ?? null;
+	// This filter runs after every REST callback. Do not let read requests or
+	// unrelated endpoints mutate post meta merely by supplying matching params.
+	$callback = $handler['callback'] ?? null;
+	if (
+		! ( $response instanceof \WP_REST_Response )
+		|| $response->is_error()
+		|| ! in_array( $request->get_method(), [ 'POST', 'PUT', 'PATCH' ], true )
+		|| ! is_array( $callback )
+		|| ! isset( $callback[0], $callback[1] )
+		|| ! ( $callback[0] instanceof \WP_REST_Posts_Controller )
+		|| $callback[0] instanceof \WP_REST_Attachments_Controller
+		|| 'update_item' !== $callback[1]
+	) {
+		return $response;
+	}
 
-	if ( $featuredImage ) {
-		switch_to_media_site();
-		$attachment = get_post( $featuredImage );
-		restore_current_blog();
-
-		$post_id = (int) $request['id'] ?? null;
-
-		if ( $attachment ) {
-			update_post_meta( $post_id, '_thumbnail_id', $featuredImage );
-		} else {
-			delete_post_meta( $post_id, '_thumbnail_id' );
+	// get_param() includes REST defaults. Inspect request input sources so an
+	// omitted featured_media field cannot accidentally remove a thumbnail.
+	$featured_media_provided = false;
+	foreach ( [ $request->get_json_params(), $request->get_body_params(), $request->get_query_params() ] as $params ) {
+		if ( array_key_exists( 'featured_media', $params ) ) {
+			$featured_media_provided = true;
+			break;
 		}
+	}
 
-		$data                   = $response->get_data();
-		$data['featured_media'] = $featuredImage;
+	if ( ! $featured_media_provided ) {
+		return $response;
+	}
+
+	$post_id = (int) $request->get_param( 'id' );
+	if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
+		return $response;
+	}
+
+	$featured_image = (int) $request->get_param( 'featured_media' );
+	$attachment     = null;
+
+	if ( $featured_image ) {
+		switch_to_media_site();
+		$attachment = get_post( $featured_image );
+		restore_current_blog();
+	}
+
+	if ( $attachment && 'attachment' === $attachment->post_type ) {
+		update_post_meta( $post_id, '_thumbnail_id', $featured_image );
+	} else {
+		delete_post_meta( $post_id, '_thumbnail_id' );
+	}
+
+	$data = $response->get_data();
+	if ( is_array( $data ) ) {
+		$data['featured_media'] = $featured_image;
 		$response->set_data( $data );
 	}
 
@@ -429,29 +468,29 @@ function allow_media_library_access( array $caps, string $cap, int $user_id, arr
 }
 
 /**
- * Filters 'img' elements in post content to add 'srcset' and 'sizes' attributes.
+ * Filters media tags in post content using the network media library site.
  *
- * @see wp_make_content_images_responsive()
+ * @see wp_filter_content_tags()
  *
  * @param string $content The raw post content to be filtered.
- * @return string Converted content with 'srcset' and 'sizes' attributes added to images.
+ * @return string Converted content with current media attributes added.
  */
-function make_content_images_responsive( $content ) {
+function filter_content_tags( $content ) {
 	if ( is_media_site() ) {
 		return $content;
 	}
 
 	switch_to_media_site();
 
-	$content = wp_make_content_images_responsive( $content );
+	$content = wp_filter_content_tags( $content );
 
 	restore_current_blog();
 
 	return $content;
 }
 
-remove_filter( 'the_content', 'wp_make_content_images_responsive' );
-add_filter( 'the_content', __NAMESPACE__ . '\make_content_images_responsive' );
+remove_filter( 'the_content', 'wp_filter_content_tags', 12 );
+add_filter( 'the_content', __NAMESPACE__ . '\filter_content_tags', 12 );
 
 /**
  * A class which encapsulates the filtering of ACF field values.

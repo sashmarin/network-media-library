@@ -1,9 +1,9 @@
 {
-  "name": "humanmade/network-media-library",
+  "name": "sashmarin/network-media-library",
   "type": "wordpress-muplugin",
   "description": "Network Media Library provides a central media library that's shared across all sites on the Multisite network.",
   "keywords": ["wordpress", "plugin", "multisite"],
-  "homepage": "https://github.com/humanmade/network-media-library",
+  "homepage": "https://github.com/sashmarin/network-media-library",
   "license": "MIT",
   "authors": [
     {
@@ -23,7 +23,7 @@
     }
   ],
   "require": {
-    "php": ">=7",
+    "php": ">=8.2",
     "composer/installers": "^1.2"
   },
   "require-dev": {
