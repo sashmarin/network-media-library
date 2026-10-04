@@ -8,6 +8,7 @@ Changes:
 - Fixed REST vulnerability that allowed featured image changes without user rights checking
 - Replaced calls to deprecared make_content_images_responsive() with wp_filter_content_tags()
 - Global library site ID changed from 2 to 1
+- Fixed site icon displaying in Wordpress admin for secondary sites
 
 ## Description
 
