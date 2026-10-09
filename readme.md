@@ -9,6 +9,9 @@ Changes:
 - Replaced calls to deprecared make_content_images_responsive() with wp_filter_content_tags()
 - Global library site ID changed from 2 to 1
 - Fixed site icon displaying in Wordpress admin for secondary sites
+- Content images on secondary sites use the central media library's site URL in srcset, including existing srcset attributes, when src already points to that site
+- Featured image tags on secondary sites are generated in the central media library's context, including srcset and sizes
+- Featured image src and srcset URLs are normalized to the central media library's home URL after rendering
 
 ## Description
 

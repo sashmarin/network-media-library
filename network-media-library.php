@@ -21,7 +21,7 @@
  * Description: Network Media Library provides a central media library that's shared across all sites on the Multisite network.
  * Network:     true
  * Plugin URI:  https://github.com/sashmarin/network-media-library
- * Version:     1.6.0-S002
+ * Version:     1.6.0-S003
  * Author:      John Blackbourn, Dominik Schilling, Frank Bültge
  * Author URI:  https://github.com/humanmade/network-media-library/graphs/contributors
  * License:     MIT
@@ -192,6 +192,85 @@ add_filter( 'wp_get_attachment_image_src', function( $image, $attachment_id, $si
 
 	return $image;
 }, 999, 4 );
+
+// The post and thumbnail IDs are resolved before these hooks. Switch only while
+// WordPress builds the image tag, so its metadata and srcset use the media site.
+add_action( 'begin_fetch_post_thumbnail_html', function() {
+	if ( ! is_media_site() ) {
+		switch_to_media_site();
+	}
+}, 999 );
+
+add_action( 'end_fetch_post_thumbnail_html', function() {
+	if ( ! is_media_site() ) {
+		restore_current_blog();
+	}
+}, 0 );
+
+// Normalize the completed featured image tag after the secondary site is restored.
+// Use home URLs, as for content images, rather than the uploads/siteurl settings.
+add_filter( 'post_thumbnail_html', function( string $html, $post_id, $thumbnail_id ) : string {
+	if ( is_media_site() || ! $thumbnail_id ) {
+		return $html;
+	}
+
+	$tag = new \WP_HTML_Tag_Processor( $html );
+	$local_baseurl = trailingslashit( get_home_url( (int) $GLOBALS['current_blog']->blog_id ) );
+	$media_baseurl = trailingslashit( get_home_url( get_site_id() ) );
+	$pattern       = '~(^|,\s*)' . preg_quote( $local_baseurl, '~' ) . '~';
+
+	while ( $tag->next_tag( 'IMG' ) ) {
+		foreach ( [ 'src', 'srcset' ] as $attribute ) {
+			$value = $tag->get_attribute( $attribute );
+			if ( is_string( $value ) ) {
+				$value = preg_replace_callback( $pattern, static function( array $match ) use ( $media_baseurl ) : string {
+					return $match[1] . $media_baseurl;
+				}, $value );
+				$tag->set_attribute( $attribute, $value );
+			}
+		}
+	}
+
+	return $tag->get_updated_html();
+}, 999, 3 );
+
+/**
+ * Points content image srcset URLs to the site already used by their src.
+ *
+ * This also handles existing srcset attributes, which bypass srcset calculation.
+ * Use the original request site because filter_content_tags() switches blogs.
+ *
+ * @param string $image         The image HTML tag.
+ * @param string $context       The content filtering context.
+ * @param int    $attachment_id The image attachment ID.
+ * @return string The image tag with shared media URLs.
+ */
+add_filter( 'wp_content_img_tag', function( string $image, string $context, int $attachment_id ) : string {
+	if ( is_media_site() || ! $attachment_id ) {
+		return $image;
+	}
+
+	$tag = new \WP_HTML_Tag_Processor( $image );
+	if ( ! $tag->next_tag( 'IMG' ) ) {
+		return $image;
+	}
+
+	$src           = $tag->get_attribute( 'src' );
+	$srcset        = $tag->get_attribute( 'srcset' );
+	$media_baseurl = trailingslashit( get_home_url( get_site_id() ) );
+	if ( ! is_string( $src ) || ! is_string( $srcset ) || ! str_starts_with( $src, $media_baseurl ) ) {
+		return $image;
+	}
+
+	$local_baseurl = trailingslashit( get_home_url( (int) $GLOBALS['current_blog']->blog_id ) );
+	$pattern       = '~(^|,\s*)' . preg_quote( $local_baseurl, '~' ) . '~';
+	$srcset        = preg_replace_callback( $pattern, static function( array $match ) use ( $media_baseurl ) : string {
+		return $match[1] . $media_baseurl;
+	}, $srcset );
+	$tag->set_attribute( 'srcset', $srcset );
+
+	return $tag->get_updated_html();
+}, 999, 3 );
 
 /**
  * Filters the default gallery shortcode output so it shows media from the network media library site.
