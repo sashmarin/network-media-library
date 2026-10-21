@@ -21,7 +21,7 @@
  * Description: Network Media Library provides a central media library that's shared across all sites on the Multisite network.
  * Network:     true
  * Plugin URI:  https://github.com/sashmarin/network-media-library
- * Version:     1.6.0-S003
+ * Version:     1.6.0-S004
  * Author:      John Blackbourn, Dominik Schilling, Frank Bültge
  * Author URI:  https://github.com/humanmade/network-media-library/graphs/contributors
  * License:     MIT
@@ -556,7 +556,7 @@ function allow_media_library_access( array $caps, string $cap, int $user_id, arr
  */
 function filter_content_tags( $content ) {
 	if ( is_media_site() ) {
-		return $content;
+		return wp_filter_content_tags( $content );
 	}
 
 	switch_to_media_site();

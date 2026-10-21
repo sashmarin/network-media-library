@@ -12,6 +12,7 @@ Changes:
 - Content images on secondary sites use the central media library's site URL in srcset, including existing srcset attributes, when src already points to that site
 - Featured image tags on secondary sites are generated in the central media library's context, including srcset and sizes
 - Featured image src and srcset URLs are normalized to the central media library's home URL after rendering
+- Fixed lazy loading missing on the main site
 
 ## Description
 
